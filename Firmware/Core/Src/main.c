@@ -34,6 +34,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define adcrv1 adcvalue[0]
+#define adcrv2 adcvalue[1]/4
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -54,8 +56,6 @@ TIM_HandleTypeDef htim6;
 /* USER CODE BEGIN PV */
 volatile int debounce = 1;
 uint32_t adcvalue[2];
-int adcrv1;
-int adcrv2;
 char rv1array[10];
 char rv2array[10];
 int enc;
@@ -137,19 +137,18 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  getadcvalues();
 
 	  ssd1306_Fill(Black);
 	  ssd1306_SetCursor(0, 0);
-	  sprintf(rv1array, "%hu\r\n", adcrv1);
+	  sprintf(rv1array, "%hu\r\n", (int)adcrv1);
 	  ssd1306_WriteString(rv1array, Font_11x18, White);
 
 	  ssd1306_SetCursor(0, 15);
-	  sprintf(rv2array, "%hu\r\n", adcrv2);
+	  sprintf(rv2array, "%hu\r\n", (int)adcrv2);
 	  ssd1306_WriteString(rv2array, Font_11x18, White);
 
 	  ssd1306_SetCursor(0, 30);
-	  enc = TIM2->CNT;
+	  enc = TIM2->CNT << 5;
 	  sprintf(encarray, "%i\r\n", enc);
 	  ssd1306_WriteString(encarray, Font_11x18, White);
 
@@ -614,10 +613,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
-void getadcvalues(void) {
-	  adcrv1 = adcvalue[0];		//Potentiometer RV1 0-4031
-	  adcrv2 = adcvalue[1]/4;		//Potentiometer RV2 0-4031
-}
 
 void makesteps_speed(unsigned int stepstoturn, unsigned int direction, unsigned int speed) {
 	maxspeed = speed;
