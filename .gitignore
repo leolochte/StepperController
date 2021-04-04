@@ -50,3 +50,16 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+.metadata/
+.settings/
+Debug/
+
+RemoteSystemsTempFiles
+*language.settings.xml
+
+*.launch
+
+
+*.cfg
+.mxproject
