@@ -58,10 +58,10 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define STEP_Pin GPIO_PIN_14
-#define STEP_GPIO_Port GPIOC
-#define DIR_Pin GPIO_PIN_15
-#define DIR_GPIO_Port GPIOC
+#define A_DIR_Pin GPIO_PIN_14
+#define A_DIR_GPIO_Port GPIOC
+#define B_DIR_Pin GPIO_PIN_15
+#define B_DIR_GPIO_Port GPIOC
 #define RE_CLK_Pin GPIO_PIN_0
 #define RE_CLK_GPIO_Port GPIOA
 #define RE_DT_Pin GPIO_PIN_1
@@ -72,8 +72,10 @@ void Error_Handler(void);
 #define SW7_C_Pin GPIO_PIN_3
 #define SW7_C_GPIO_Port GPIOA
 #define SW7_C_EXTI_IRQn EXTI3_IRQn
-#define MICROSTEP_Pin GPIO_PIN_7
-#define MICROSTEP_GPIO_Port GPIOA
+#define A_STEP_Pin GPIO_PIN_5
+#define A_STEP_GPIO_Port GPIOA
+#define B_STEP_Pin GPIO_PIN_6
+#define B_STEP_GPIO_Port GPIOA
 #define RV1_Pin GPIO_PIN_0
 #define RV1_GPIO_Port GPIOB
 #define RV2_Pin GPIO_PIN_1
@@ -84,8 +86,6 @@ void Error_Handler(void);
 #define D4_GPIO_Port GPIOA
 #define D5_Pin GPIO_PIN_12
 #define D5_GPIO_Port GPIOA
-#define RST_Pin GPIO_PIN_15
-#define RST_GPIO_Port GPIOA
 #define SW7_U_Pin GPIO_PIN_4
 #define SW7_U_GPIO_Port GPIOB
 #define SW7_U_EXTI_IRQn EXTI4_IRQn

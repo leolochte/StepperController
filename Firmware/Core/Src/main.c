@@ -35,7 +35,8 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define adcrv1 adcvalue[0]
-#define adcrv2 adcvalue[1]/4
+#define adcrv2 adcvalue[1]
+#define enc (TIM2->CNT << 5)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -58,14 +59,27 @@ volatile int debounce = 1;
 uint32_t adcvalue[2];
 char rv1array[10];
 char rv2array[10];
-int enc;
 char encarray[10];
 
-volatile unsigned int maxspeed;					//minimum delay to be reached in the middle
-volatile unsigned int microseconds = 2000;		//starting delay
-volatile unsigned int counter = 0;
-volatile unsigned int currentstep;
-volatile unsigned int steps;
+struct stepper {	//contains every variable and info about one stepper, including ones being used to coordinate steps etc.
+	volatile unsigned int mindelay;
+	volatile unsigned int accel;
+	volatile unsigned int direction;
+	volatile unsigned int steps;
+
+	volatile unsigned int counter;
+	volatile unsigned int currentstep;
+	volatile unsigned int nextDelay;
+
+	GPIO_TypeDef* STEPGPIOPORT;
+	uint16_t STEPGPIOPIN;
+
+	GPIO_TypeDef* DIRGPIOPORT;
+	uint16_t DIRGPIOPIN;
+};
+
+volatile unsigned int steppersDone;
+struct stepper steppersArray[2];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,9 +92,9 @@ static void MX_TIM1_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM6_Init(void);
 /* USER CODE BEGIN PFP */
-void getadcvalues(void);
 void makesteps_speed(unsigned int steps, unsigned int direction, unsigned int speed);
 void makesteps_duration(unsigned int stepstoturn, unsigned int direction, unsigned int duration_ms);
+void moveSteppers_micro_sync(unsigned int time);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -109,11 +123,9 @@ int main(void)
 
   /* Configure the system clock */
   SystemClock_Config();
-
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
-
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
@@ -123,19 +135,37 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
+
   ssd1306_Init();
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adcvalue, 2);
   HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
-  HAL_GPIO_WritePin(MICROSTEP_GPIO_Port, MICROSTEP_Pin, RESET);
-  HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, SET);
-  /* USER CODE END 2 */
 
+  steppersArray[0].mindelay = 1000;
+  steppersArray[0].accel = 8000;
+  steppersArray[0].direction = 1;
+  steppersArray[0].steps = 3200;
+  steppersArray[0].nextDelay = 8000;
+  steppersArray[0].STEPGPIOPORT = A_STEP_GPIO_Port;
+  steppersArray[0].STEPGPIOPIN = A_STEP_Pin;
+  steppersArray[0].DIRGPIOPORT = A_DIR_GPIO_Port;
+  steppersArray[0].DIRGPIOPIN = A_DIR_Pin;
+
+  steppersArray[1].mindelay = 1000;
+  steppersArray[1].accel = 8000;
+  steppersArray[1].direction = 1;
+  steppersArray[1].steps = 800;
+  steppersArray[1].nextDelay = 8000;
+  steppersArray[1].STEPGPIOPORT = B_STEP_GPIO_Port;
+  steppersArray[1].STEPGPIOPIN = B_STEP_Pin;
+  steppersArray[1].DIRGPIOPORT = B_DIR_GPIO_Port;
+  steppersArray[1].DIRGPIOPIN = B_DIR_Pin;
+
+  /* USER CODE END 2 */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
-
     /* USER CODE BEGIN 3 */
 
 	  ssd1306_Fill(Black);
@@ -148,8 +178,7 @@ int main(void)
 	  ssd1306_WriteString(rv2array, Font_11x18, White);
 
 	  ssd1306_SetCursor(0, 30);
-	  enc = TIM2->CNT << 5;
-	  sprintf(encarray, "%i\r\n", enc);
+	  sprintf(encarray, "%i\r\n", (int)enc);
 	  ssd1306_WriteString(encarray, Font_11x18, White);
 
 	  ssd1306_UpdateScreen();
@@ -490,14 +519,14 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, STEP_Pin|DIR_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, A_DIR_Pin|B_DIR_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, MICROSTEP_Pin|D3_Pin|D4_Pin|D5_Pin
-                          |RST_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, A_STEP_Pin|B_STEP_Pin|D3_Pin|D4_Pin
+                          |D5_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : STEP_Pin DIR_Pin */
-  GPIO_InitStruct.Pin = STEP_Pin|DIR_Pin;
+  /*Configure GPIO pins : A_DIR_Pin B_DIR_Pin */
+  GPIO_InitStruct.Pin = A_DIR_Pin|B_DIR_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -509,10 +538,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : MICROSTEP_Pin D3_Pin D4_Pin D5_Pin
-                           RST_Pin */
-  GPIO_InitStruct.Pin = MICROSTEP_Pin|D3_Pin|D4_Pin|D5_Pin
-                          |RST_Pin;
+  /*Configure GPIO pins : A_STEP_Pin B_STEP_Pin D3_Pin D4_Pin
+                           D5_Pin */
+  GPIO_InitStruct.Pin = A_STEP_Pin|B_STEP_Pin|D3_Pin|D4_Pin
+                          |D5_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -557,10 +586,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if (htim == &htim1) {
 		if(HAL_GPIO_ReadPin(RE_SWD_GPIO_Port, RE_SWD_Pin) == GPIO_PIN_RESET)	{
 			if (enc < 0) {
-				enc *= -1;
-				makesteps_duration(enc, 1, adcrv2);
+				//makesteps_duration(-enc, 1, adcrv2);
 			} else {
-				makesteps_duration(enc, 0, adcrv2);
+				//makesteps_duration(enc, 0, adcrv2);
 			}
 			debounce = 1;
 			HAL_TIM_Base_Stop_IT(&htim1);
@@ -582,7 +610,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
 		if (HAL_GPIO_ReadPin(SW7_C_GPIO_Port, SW7_C_Pin) == GPIO_PIN_RESET) 	{
-
+			moveSteppers_micro_sync(300);
 			debounce = 1;
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
@@ -590,30 +618,36 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 	//CODE FOR RUNNING STEPPERS
 	if (htim == &htim6) {
-		if (counter < microseconds) {										//desired delay is not yet over
-			++counter;
-		} else {															//desired delay is over -> make a step and edit next delay
-			if (currentstep < steps) {
-				HAL_GPIO_WritePin(STEP_GPIO_Port, STEP_Pin, GPIO_PIN_SET);
-				HAL_GPIO_WritePin(STEP_GPIO_Port, STEP_Pin, GPIO_PIN_RESET);
-				++currentstep;
-				counter = 0;
-				if (currentstep < steps/2) {									//ramping up speed
-					microseconds = microseconds - 2*microseconds/(4*currentstep+1);
-				} else {														//ramping down speed
-					microseconds = microseconds*(4*(steps-currentstep)+1)/(4*(steps-currentstep)+1-2);
-				}
-				if (microseconds < maxspeed) {									//not allowing smaller delays than specified
-					microseconds = maxspeed;
-				}
+		steppersDone = 0;
+		for (int i = 0; i < sizeof(steppersArray)/sizeof(steppersArray[0]); ++i) {
+			if (steppersArray[i].counter < steppersArray[i].mindelay) {
+				++steppersArray[i].counter;
 			} else {
-				HAL_TIM_Base_Stop_IT(&htim6);
+				if (steppersArray[i].currentstep < steppersArray[i].steps) {
+					HAL_GPIO_WritePin(steppersArray[i].STEPGPIOPORT, steppersArray[i].STEPGPIOPIN, SET);
+					HAL_GPIO_WritePin(steppersArray[i].STEPGPIOPORT, steppersArray[i].STEPGPIOPIN, RESET);
+					++steppersArray[i].currentstep;
+					steppersArray[i].counter = 0;
+					if (steppersArray[i].currentstep < steppersArray[i].steps/2) {
+						steppersArray[i].nextDelay -= 2*steppersArray[i].nextDelay/(4*steppersArray[i].currentstep+1);
+					} else {
+						steppersArray[i].nextDelay *= (4*(steppersArray[i].steps-steppersArray[i].currentstep)+1)/(4*(steppersArray[i].steps-steppersArray[i].currentstep)+1-2);
+					}
+					if (steppersArray[i].nextDelay < steppersArray[i].mindelay) {
+						steppersArray[i].nextDelay = steppersArray[i].mindelay;
+					}
+				} else {
+					++steppersDone;
+					if (steppersDone == sizeof(steppersArray)/sizeof(steppersArray[0])) {
+						HAL_TIM_Base_Stop_IT(&htim6);
+					}
+				}
 			}
 		}
 	}
 }
 
-
+/*
 void makesteps_speed(unsigned int stepstoturn, unsigned int direction, unsigned int speed) {
 	maxspeed = speed;
 	currentstep = 0;
@@ -629,6 +663,18 @@ void makesteps_duration(unsigned int stepstoturn, unsigned int direction, unsign
 	microseconds = adcrv1;
 	steps = stepstoturn;
 	HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, direction);
+	HAL_TIM_Base_Start_IT(&htim6);
+}
+*/
+
+void moveSteppers_micro_sync(unsigned int time) {
+	for (int i = 0; i < sizeof(steppersArray)/sizeof(steppersArray[0]) ;++i) {
+		steppersArray[i].currentstep = 0;
+		steppersArray[i].counter = 0;
+
+		steppersArray[i].mindelay = 400*0.66*time/steppersArray[i].steps;
+		HAL_GPIO_WritePin(steppersArray[i].DIRGPIOPORT, steppersArray[i].DIRGPIOPIN, steppersArray[i].direction);
+	}
 	HAL_TIM_Base_Start_IT(&htim6);
 }
 /* USER CODE END 4 */
