@@ -25,6 +25,7 @@
 #include "ssd1306_tests.h"
 #include "ssd1306.h"
 #include "stdio.h"
+#include "stepper.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -61,25 +62,7 @@ char rv1array[10];
 char rv2array[10];
 char encarray[10];
 
-struct stepper {	//contains every variable and info about one stepper, including ones being used to coordinate steps etc.
-	volatile unsigned int mindelay;
-	volatile unsigned int accel;
-	volatile unsigned int direction;
-	volatile unsigned int steps;
 
-	volatile unsigned int counter;
-	volatile unsigned int currentstep;
-	volatile unsigned int nextDelay;
-
-	GPIO_TypeDef* STEPGPIOPORT;
-	uint16_t STEPGPIOPIN;
-
-	GPIO_TypeDef* DIRGPIOPORT;
-	uint16_t DIRGPIOPIN;
-};
-
-volatile unsigned int steppersDone;
-struct stepper steppersArray[2];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -92,9 +75,7 @@ static void MX_TIM1_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM6_Init(void);
 /* USER CODE BEGIN PFP */
-void makesteps_speed(unsigned int steps, unsigned int direction, unsigned int speed);
-void makesteps_duration(unsigned int stepstoturn, unsigned int direction, unsigned int duration_ms);
-void moveSteppers_micro_sync(unsigned int time);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -647,36 +628,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
-/*
-void makesteps_speed(unsigned int stepstoturn, unsigned int direction, unsigned int speed) {
-	maxspeed = speed;
-	currentstep = 0;
-	microseconds = 2000;
-	steps = stepstoturn;
-	HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, direction);
-	HAL_TIM_Base_Start_IT(&htim6);
-}
-
-void makesteps_duration(unsigned int stepstoturn, unsigned int direction, unsigned int duration_ms) {	//make a set amount of steps in a set amount of time
-	maxspeed = 400*0.66*duration_ms/stepstoturn;
-	currentstep = 0;
-	microseconds = adcrv1;
-	steps = stepstoturn;
-	HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, direction);
-	HAL_TIM_Base_Start_IT(&htim6);
-}
-*/
-
-void moveSteppers_micro_sync(unsigned int time) {
-	for (int i = 0; i < sizeof(steppersArray)/sizeof(steppersArray[0]) ;++i) {
-		steppersArray[i].currentstep = 0;
-		steppersArray[i].counter = 0;
-
-		steppersArray[i].mindelay = 400*0.66*time/steppersArray[i].steps;
-		HAL_GPIO_WritePin(steppersArray[i].DIRGPIOPORT, steppersArray[i].DIRGPIOPIN, steppersArray[i].direction);
-	}
-	HAL_TIM_Base_Start_IT(&htim6);
-}
 /* USER CODE END 4 */
 
 /**
