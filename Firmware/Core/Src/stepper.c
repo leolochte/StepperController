@@ -3,20 +3,21 @@
  *
  *  Created on: 05.04.2021
  *      Author: Leo
+ *
+ *
+ *
  */
 
 /*INCLUDES*/
 #include "stepper.h"
-#include "main.h"
 
 /*FUNCTIONS*/
 void moveSteppers_micro_sync(unsigned int time) {
-	for (int i = 0; i < sizeof(steppersArray)/sizeof(steppersArray[0]) ;++i) {
-		steppersArray[i].currentstep = 0;
+	arraylength = sizeof(steppersArray)/sizeof(steppersArray[0]);
+	for (int i = 0; i < arraylength; ++i) {
 		steppersArray[i].counter = 0;
-
-		steppersArray[i].mindelay = 400*0.66*time/steppersArray[i].steps;
+		steppersArray[i].current_step = 0;
+		steppersArray[i].required_delay = 0.676 * 1000000 * 10 * sqrt(2*(2*3.14/3200)/(3*3.14/2*steppersArray[i].steps*pow(time/1000, 2)));
 		HAL_GPIO_WritePin(steppersArray[i].DIRGPIOPORT, steppersArray[i].DIRGPIOPIN, steppersArray[i].direction);
 	}
-	HAL_TIM_Base_Start_IT(&htim6);
 }

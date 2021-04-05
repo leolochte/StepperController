@@ -104,9 +104,11 @@ int main(void)
 
   /* Configure the system clock */
   SystemClock_Config();
+
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
+
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
@@ -121,32 +123,28 @@ int main(void)
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adcvalue, 2);
   HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
 
-  steppersArray[0].mindelay = 1000;
-  steppersArray[0].accel = 8000;
   steppersArray[0].direction = 1;
   steppersArray[0].steps = 3200;
-  steppersArray[0].nextDelay = 8000;
   steppersArray[0].STEPGPIOPORT = A_STEP_GPIO_Port;
   steppersArray[0].STEPGPIOPIN = A_STEP_Pin;
   steppersArray[0].DIRGPIOPORT = A_DIR_GPIO_Port;
   steppersArray[0].DIRGPIOPIN = A_DIR_Pin;
 
-  steppersArray[1].mindelay = 1000;
-  steppersArray[1].accel = 8000;
   steppersArray[1].direction = 1;
   steppersArray[1].steps = 800;
-  steppersArray[1].nextDelay = 8000;
   steppersArray[1].STEPGPIOPORT = B_STEP_GPIO_Port;
   steppersArray[1].STEPGPIOPIN = B_STEP_Pin;
   steppersArray[1].DIRGPIOPORT = B_DIR_GPIO_Port;
   steppersArray[1].DIRGPIOPIN = B_DIR_Pin;
 
   /* USER CODE END 2 */
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
 
 	  ssd1306_Fill(Black);
@@ -566,11 +564,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   	//CODE FOR DEBOUNCED BUTTONS
 	if (htim == &htim1) {
 		if(HAL_GPIO_ReadPin(RE_SWD_GPIO_Port, RE_SWD_Pin) == GPIO_PIN_RESET)	{
-			if (enc < 0) {
-				//makesteps_duration(-enc, 1, adcrv2);
-			} else {
-				//makesteps_duration(enc, 0, adcrv2);
-			}
 			debounce = 1;
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
@@ -591,7 +584,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
 		if (HAL_GPIO_ReadPin(SW7_C_GPIO_Port, SW7_C_Pin) == GPIO_PIN_RESET) 	{
-			moveSteppers_micro_sync(300);
+			moveSteppers_micro_sync(adcrv1);
+			HAL_TIM_Base_Start_IT(&htim6);
 			debounce = 1;
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
@@ -600,28 +594,25 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	//CODE FOR RUNNING STEPPERS
 	if (htim == &htim6) {
 		steppersDone = 0;
-		for (int i = 0; i < sizeof(steppersArray)/sizeof(steppersArray[0]); ++i) {
-			if (steppersArray[i].counter < steppersArray[i].mindelay) {
+		for (int i = 0; i < arraylength; ++i) {
+			if (steppersArray[i].counter < steppersArray[i].required_delay) {
 				++steppersArray[i].counter;
 			} else {
-				if (steppersArray[i].currentstep < steppersArray[i].steps) {
+				if (steppersArray[i].current_step < steppersArray[i].steps) {
 					HAL_GPIO_WritePin(steppersArray[i].STEPGPIOPORT, steppersArray[i].STEPGPIOPIN, SET);
 					HAL_GPIO_WritePin(steppersArray[i].STEPGPIOPORT, steppersArray[i].STEPGPIOPIN, RESET);
-					++steppersArray[i].currentstep;
+					++steppersArray[i].current_step;
 					steppersArray[i].counter = 0;
-					if (steppersArray[i].currentstep < steppersArray[i].steps/2) {
-						steppersArray[i].nextDelay -= 2*steppersArray[i].nextDelay/(4*steppersArray[i].currentstep+1);
+					if (steppersArray[i].current_step < steppersArray[i].steps / 2) {
+						steppersArray[i].required_delay = steppersArray[i].required_delay - 2*steppersArray[i].required_delay/(4*steppersArray[i].current_step+1);
 					} else {
-						steppersArray[i].nextDelay *= (4*(steppersArray[i].steps-steppersArray[i].currentstep)+1)/(4*(steppersArray[i].steps-steppersArray[i].currentstep)+1-2);
-					}
-					if (steppersArray[i].nextDelay < steppersArray[i].mindelay) {
-						steppersArray[i].nextDelay = steppersArray[i].mindelay;
+						steppersArray[i].required_delay = steppersArray[i].required_delay - 2*steppersArray[i].required_delay/(4*(steppersArray[i].current_step-steppersArray[i].steps)+1);
 					}
 				} else {
 					++steppersDone;
-					if (steppersDone == sizeof(steppersArray)/sizeof(steppersArray[0])) {
-						HAL_TIM_Base_Stop_IT(&htim6);
-					}
+				}
+				if (steppersDone == arraylength) {
+					HAL_TIM_Base_Stop_IT(&htim6);
 				}
 			}
 		}

@@ -7,20 +7,18 @@
 
 /*INCLUDES*/
 #include "stm32l4xx_hal.h"
+#include "math.h"
 
 /*FUNCTION DECLARATIONS*/
 void moveSteppers_micro_sync(unsigned int time);
 
 /*DEFINITIONS*/
-struct stepper {	//contains every variable and info about one stepper, including ones being used to coordinate steps etc.
-	volatile unsigned int mindelay;
-	volatile unsigned int accel;
-	volatile unsigned int direction;
-	volatile unsigned int steps;
-
-	volatile unsigned int counter;
-	volatile unsigned int currentstep;
-	volatile unsigned int nextDelay;
+struct stepper {		// contains every variable and info about one stepper, including ones being used to coordinate steps etc.
+	volatile float counter; 			// counts from 0 up on timer increments till the desired delay
+	volatile float required_delay; 	// stores the delay till the next step
+	volatile float current_step;
+	volatile float direction;
+	volatile float steps;
 
 	GPIO_TypeDef* STEPGPIOPORT;
 	uint16_t STEPGPIOPIN;
@@ -32,3 +30,4 @@ struct stepper {	//contains every variable and info about one stepper, including
 /*VARIABLES*/
 volatile unsigned int steppersDone;
 struct stepper steppersArray[2];
+volatile uint32_t arraylength;
