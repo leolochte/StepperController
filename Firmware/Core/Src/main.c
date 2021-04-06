@@ -564,6 +564,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   	//CODE FOR DEBOUNCED BUTTONS
 	if (htim == &htim1) {
 		if(HAL_GPIO_ReadPin(RE_SWD_GPIO_Port, RE_SWD_Pin) == GPIO_PIN_RESET)	{
+			moveSteppers_micro_sync(30000);
+			HAL_TIM_Base_Start_IT(&htim6);
+			HAL_GPIO_WritePin(D5_GPIO_Port, D5_Pin, SET);
 			debounce = 1;
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
@@ -586,6 +589,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		if (HAL_GPIO_ReadPin(SW7_C_GPIO_Port, SW7_C_Pin) == GPIO_PIN_RESET) 	{
 			moveSteppers_micro_sync(adcrv1);
 			HAL_TIM_Base_Start_IT(&htim6);
+			HAL_GPIO_WritePin(D5_GPIO_Port, D5_Pin, SET);
 			debounce = 1;
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
@@ -613,6 +617,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				}
 				if (steppersDone == arraylength) {
 					HAL_TIM_Base_Stop_IT(&htim6);
+					HAL_GPIO_WritePin(D5_GPIO_Port, D5_Pin, RESET);
 				}
 			}
 		}
