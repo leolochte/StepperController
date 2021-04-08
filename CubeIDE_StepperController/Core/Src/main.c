@@ -123,25 +123,7 @@ int main(void)
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adcvalue, 2);
   HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
 
-  stepper_t stepper_A;
-  stepper_t stepper_B;
-
-  stepper_A.direction = 1;
-  stepper_A.steps = 3200;
-  stepper_A.STEPGPIOPORT = A_STEP_GPIO_Port;
-  stepper_A.STEPGPIOPIN = A_STEP_Pin;
-  stepper_A.DIRGPIOPORT = A_DIR_GPIO_Port;
-  stepper_A.DIRGPIOPIN = A_DIR_Pin;
-
-  stepper_B.direction = 1;
-  stepper_B.steps = 800;
-  stepper_B.STEPGPIOPORT = B_STEP_GPIO_Port;
-  stepper_B.STEPGPIOPIN = B_STEP_Pin;
-  stepper_B.DIRGPIOPORT = B_DIR_GPIO_Port;
-  stepper_B.DIRGPIOPIN = B_DIR_Pin;
-
-  steppersArray[0] = stepper_A;
-  steppersArray[1] = stepper_B;
+  stepper_Init();
 
   /* USER CODE END 2 */
 
@@ -582,20 +564,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
 		if (HAL_GPIO_ReadPin(SW7_L_GPIO_Port, SW7_L_Pin) == GPIO_PIN_RESET) 	{
-			moveSteppers_micro_single(adcrv1, 0, 1, 360);
-			HAL_GPIO_WritePin(D4_GPIO_Port, D4_Pin, SET);
-			HAL_TIM_Base_Start_IT(&htim6);
 			debounce = 1;
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
 		if (HAL_GPIO_ReadPin(SW7_R_GPIO_Port, SW7_R_Pin) == GPIO_PIN_RESET) 	{
-			moveSteppers_micro_single(adcrv2, 1, 0, 360);
-			HAL_GPIO_WritePin(D5_GPIO_Port, D5_Pin, SET);
-			HAL_TIM_Base_Start_IT(&htim6);
 			debounce = 1;
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
 		if (HAL_GPIO_ReadPin(SW7_C_GPIO_Port, SW7_C_Pin) == GPIO_PIN_RESET) 	{
+			steppersArray[0].state = 0;
+			steppersArray[1].state = 0;
+			make_movement(movementArray1[0][0]);
+			make_movement(movementArray1[1][0]);
+			HAL_TIM_Base_Start_IT(&htim6);
 			debounce = 1;
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
@@ -619,12 +600,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 						steppersArray[i].required_delay = steppersArray[i].required_delay - 2*steppersArray[i].required_delay/(4*(steppersArray[i].current_step-steppersArray[i].steps)+1);
 					}
 				} else {
-					++steppersDone;
-				}
-				if (steppersDone == arraylength) {
-					HAL_TIM_Base_Stop_IT(&htim6);
-					HAL_GPIO_WritePin(D5_GPIO_Port, D5_Pin, RESET);
-					HAL_GPIO_WritePin(D4_GPIO_Port, D5_Pin, SET);
+					if (steppersArray[i].state == 2) {
+						++steppersDone;
+					} else {
+						steppersArray[i].state = steppersArray[i].state + 1;
+						make_movement(movementArray1[steppersArray[i].position][steppersArray[i].state]);
+					}
+					if (steppersDone == arraylength) {
+						HAL_TIM_Base_Stop_IT(&htim6);
+					}
 				}
 			}
 		}
