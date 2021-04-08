@@ -123,19 +123,25 @@ int main(void)
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adcvalue, 2);
   HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
 
-  steppersArray[0].direction = 1;
-  steppersArray[0].steps = 3200;
-  steppersArray[0].STEPGPIOPORT = A_STEP_GPIO_Port;
-  steppersArray[0].STEPGPIOPIN = A_STEP_Pin;
-  steppersArray[0].DIRGPIOPORT = A_DIR_GPIO_Port;
-  steppersArray[0].DIRGPIOPIN = A_DIR_Pin;
+  stepper_t stepper_A;
+  stepper_t stepper_B;
 
-  steppersArray[1].direction = 1;
-  steppersArray[1].steps = 800;
-  steppersArray[1].STEPGPIOPORT = B_STEP_GPIO_Port;
-  steppersArray[1].STEPGPIOPIN = B_STEP_Pin;
-  steppersArray[1].DIRGPIOPORT = B_DIR_GPIO_Port;
-  steppersArray[1].DIRGPIOPIN = B_DIR_Pin;
+  stepper_A.direction = 1;
+  stepper_A.steps = 3200;
+  stepper_A.STEPGPIOPORT = A_STEP_GPIO_Port;
+  stepper_A.STEPGPIOPIN = A_STEP_Pin;
+  stepper_A.DIRGPIOPORT = A_DIR_GPIO_Port;
+  stepper_A.DIRGPIOPIN = A_DIR_Pin;
+
+  stepper_B.direction = 1;
+  stepper_B.steps = 800;
+  stepper_B.STEPGPIOPORT = B_STEP_GPIO_Port;
+  stepper_B.STEPGPIOPIN = B_STEP_Pin;
+  stepper_B.DIRGPIOPORT = B_DIR_GPIO_Port;
+  stepper_B.DIRGPIOPIN = B_DIR_Pin;
+
+  steppersArray[0] = stepper_A;
+  steppersArray[1] = stepper_B;
 
   /* USER CODE END 2 */
 
@@ -564,9 +570,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   	//CODE FOR DEBOUNCED BUTTONS
 	if (htim == &htim1) {
 		if(HAL_GPIO_ReadPin(RE_SWD_GPIO_Port, RE_SWD_Pin) == GPIO_PIN_RESET)	{
-			moveSteppers_micro_sync(30000);
-			HAL_TIM_Base_Start_IT(&htim6);
-			HAL_GPIO_WritePin(D5_GPIO_Port, D5_Pin, SET);
 			debounce = 1;
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
@@ -579,17 +582,20 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
 		if (HAL_GPIO_ReadPin(SW7_L_GPIO_Port, SW7_L_Pin) == GPIO_PIN_RESET) 	{
+			moveSteppers_micro_single(adcrv1, 0, 1, 360);
+			HAL_GPIO_WritePin(D4_GPIO_Port, D4_Pin, SET);
+			HAL_TIM_Base_Start_IT(&htim6);
 			debounce = 1;
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
 		if (HAL_GPIO_ReadPin(SW7_R_GPIO_Port, SW7_R_Pin) == GPIO_PIN_RESET) 	{
+			moveSteppers_micro_single(adcrv2, 1, 0, 360);
+			HAL_GPIO_WritePin(D5_GPIO_Port, D5_Pin, SET);
+			HAL_TIM_Base_Start_IT(&htim6);
 			debounce = 1;
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
 		if (HAL_GPIO_ReadPin(SW7_C_GPIO_Port, SW7_C_Pin) == GPIO_PIN_RESET) 	{
-			moveSteppers_micro_sync(adcrv1);
-			HAL_TIM_Base_Start_IT(&htim6);
-			HAL_GPIO_WritePin(D5_GPIO_Port, D5_Pin, SET);
 			debounce = 1;
 			HAL_TIM_Base_Stop_IT(&htim1);
 		}
@@ -618,6 +624,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				if (steppersDone == arraylength) {
 					HAL_TIM_Base_Stop_IT(&htim6);
 					HAL_GPIO_WritePin(D5_GPIO_Port, D5_Pin, RESET);
+					HAL_GPIO_WritePin(D4_GPIO_Port, D5_Pin, SET);
 				}
 			}
 		}
