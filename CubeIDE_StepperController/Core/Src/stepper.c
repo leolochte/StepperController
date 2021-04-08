@@ -78,32 +78,32 @@ void stepper_Init(void) {
 	// Movements for stepper  B
 	movementArray1[0][0].stepper	= 0;
 	movementArray1[0][0].direction	= 0;
-	movementArray1[0][0].degrees	= 360;
-	movementArray1[0][0].time		= 3250;
+	movementArray1[0][0].degrees	= 1080;
+	movementArray1[0][0].time		= 1500;
 
 	movementArray1[0][1].stepper	= 0;
 	movementArray1[0][1].direction	= 1;
-	movementArray1[0][1].degrees	= 180;
+	movementArray1[0][1].degrees	= 0;
 	movementArray1[0][1].time		= 500;
 
 	movementArray1[0][2].stepper	= 0;
 	movementArray1[0][2].direction	= 0;
-	movementArray1[0][2].degrees	= 180;
+	movementArray1[0][2].degrees	= 0;
 	movementArray1[0][2].time		= 3250;
 
 	// Movements for stepper A
 	movementArray1[1][0].stepper	= 1;
 	movementArray1[1][0].direction	= 1;
-	movementArray1[1][0].degrees	= 360;
-	movementArray1[1][0].time		= 1000;
+	movementArray1[1][0].degrees	= 90;
+	movementArray1[1][0].time		= 250;
 
 	movementArray1[1][1].stepper	= 1;
 	movementArray1[1][1].direction	= 0;
 	movementArray1[1][1].degrees	= 0;
-	movementArray1[1][1].time		= 5000;
+	movementArray1[1][1].time		= 1000;
 
 	movementArray1[1][2].stepper	= 1;
 	movementArray1[1][2].direction	= 0;
-	movementArray1[1][2].degrees	= 360;
-	movementArray1[1][2].time		= 1000;
+	movementArray1[1][2].degrees	= 90;
+	movementArray1[1][2].time		= 250;
 }
