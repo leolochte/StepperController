@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name KiCad_StepperController-rescue)(type Legacy)(uri ${KIPRJMOD}/KiCad_StepperController-rescue.lib)(options "")(descr ""))
+)
